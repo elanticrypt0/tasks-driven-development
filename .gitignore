@@ -1,0 +1,4 @@
+# Backups and local runtime configs
+*.bak
+.opencode/
+.claude/
