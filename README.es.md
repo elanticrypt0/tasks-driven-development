@@ -79,5 +79,4 @@ skills/
     SKILL.md
     references/code-quality.md
     references/orchestration.md
-directive.md        # directiva original (en español) de la que salieron estos skills
 ```

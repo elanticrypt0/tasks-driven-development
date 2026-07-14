@@ -79,5 +79,4 @@ skills/
     SKILL.md
     references/code-quality.md
     references/orchestration.md
-directive.md        # original (Spanish) directive these skills were split from
 ```
