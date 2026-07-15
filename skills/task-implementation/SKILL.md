@@ -27,10 +27,26 @@ Task states (in `.tasks/tasks.md`): `idea` | `planned` | `review` | `done`.
 ## Execution steps
 
 1. Load relevant skills/tools before starting.
-2. With a task tool available: one task per step; mark `WIP` on start, `DONE` on finish.
-3. If the plan has ≥2 steps marked `parallelizable: yes` → apply orchestration (see `references/orchestration.md`). Otherwise execute directly with the primary role.
-4. Apply the code quality standards in `references/code-quality.md` to every change.
-5. On failure, report the exact error and proposed solution.
+2. **Create a task branch before making any change** (see below). All implementation happens on this branch, never directly on the base branch.
+3. With a task tool available: one task per step; mark `WIP` on start, `DONE` on finish.
+4. If the plan has ≥2 steps marked `parallelizable: yes` → apply orchestration (see `references/orchestration.md`). Otherwise execute directly with the primary role.
+5. Apply the code quality standards in `references/code-quality.md` to every change.
+6. On failure, report the exact error and proposed solution.
+
+## Task branch (before implementing)
+
+Before implementing a task, create a dedicated branch for it so the work stays isolated and reversible.
+
+- **Name**: the simplified task name in `kebab-case`, prefixed with `task/` — e.g. task "Agregar login con Google" → `task/agregar-login-con-google`.
+- Simplify the name: lowercase, remove accents and punctuation, collapse spaces to single hyphens, drop filler words, and keep it short (roughly ≤ 6 words). If the task has an id, prefix it: `task/<id>-<slug>` (e.g. `task/T12-agregar-login`).
+- **Branch from the up-to-date base branch** (the project's default, usually `main`).
+- Commands:
+  ```sh
+  git checkout main && git pull
+  git checkout -b task/<slug>
+  ```
+- If the branch already exists, switch to it instead of recreating it (`git checkout task/<slug>`).
+- Never implement directly on the base branch.
 
 ## Security (always check, non-negotiable)
 
@@ -63,10 +79,12 @@ Report the real result of each verification (what ran and what it returned). If 
 
 1. Update the task state in `.tasks/tasks.md`: `review` if it needs human review, `done` otherwise.
 2. When a task reaches `done`, move its plan to `.tasks/plans/archive/`.
+3. **Remind the user that the merge is manual**: the task branch is left as-is; a human reviews and merges it into the base branch. Never merge the task branch yourself.
 
 ## Closing (max 2 lines)
 
 ```md
 Changed: <what changed and where>.
+Branch: <task/branch-name> — merge is manual; a human must review and merge it.
 Next: <next step or "nothing">.
 ```
