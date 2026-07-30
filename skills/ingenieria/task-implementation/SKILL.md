@@ -62,7 +62,24 @@ When the plan allows parallel work, the orchestrator (primary role) distributes 
 
 - R4–R5 steps are never delegated.
 - Workers never run destructive commands (`rm`, `DROP`, mass `DELETE`, `--force`).
-- Every worker result is verified against the step's success criterion before integration.
+- Every worker result is verified against the step's success criterion before integration.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+### Implementation model and consultations
+
+Analysis uses the provider's top model (see `task-analysis/references/model-selection.md`); **implementation is delegated to a lesser model**, and the top model is kept for consultations. Verified 2026-07-29.
+
+| Provider | Implementation worker | Consultation model |
+|----------|----------------------|--------------------|
+| Anthropic | Sonnet | Opus or Fable — not the model that spawned the worker |
+| OpenAI | Luna/medium or Tierra/medium | SOL/high |
+| Other providers | ask the user | ask the user |
+
+- Deploy the implementation worker as a subagent (backend A) or an `opencode` run (backend B) on the model above, never on the analysis model.
+- A **consultation** is a read-only advice request: code review of the produced diff, hunting for improvements, or a fix for a blocked step. The consultant returns findings only; the worker (or the orchestrator) applies the changes.
+- If the orchestrator is already the consultation model, it answers the consultation itself instead of spawning another agent for it.
+- Consultations do not replace the R3+ critical review in the Definition of done, and they never lift the R4–R5 no-delegation limit.
+
+Invocation details and the read-only guarantee are in `references/orchestration.md`.
 
 ## Definition of done
 

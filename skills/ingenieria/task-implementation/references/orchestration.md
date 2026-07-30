@@ -82,6 +82,37 @@ Fallback: if a run fails or returns garbage, retry ONCE with the next model in p
 
 Note: do not use the company name as provider: `minimax/minimax-m3` returns "Unexpected server error".
 
+## Implementation model and consultations
+
+The worker that writes code is **always a lesser model than the one that analyzed the task**; the provider's top model is reserved for consultations. Brand names age — verified 2026-07-29.
+
+| Provider | Implementation worker | Consultation model |
+|----------|----------------------|--------------------|
+| Anthropic | Sonnet | Opus or Fable — not the model that spawned the worker |
+| OpenAI | Luna/medium or Tierra/medium | SOL/high |
+| Other providers | ask the user | ask the user |
+
+- On Anthropic, the consultant is the top model that is **not** the caller: if the orchestrator runs on Fable, consultations go to Opus, and vice versa. If the orchestrator is itself the consultation model, it answers the consultation directly instead of spawning another agent.
+- On OpenAI, the implementation worker runs Luna or Tierra at `medium` effort and consults SOL at `high` effort.
+
+### What a consultation is for
+
+- code review of the diff the worker just produced;
+- hunting for improvements over a step that already meets its criterion;
+- a fix when the worker is blocked or its own attempt fails verification.
+
+### Consultation rules
+
+- **Read-only**: the consultant returns findings, never writes files. Backend A — launch it with the `review` role. Backend B — run it **without `--auto`** so it cannot write to disk:
+  ```sh
+  timeout 240 opencode run "CONSULTATION PROMPT" -m CONSULTATION_MODEL
+  ```
+- The consultation prompt carries the same subtask contract plus the actual diff (`git diff`) and the step's success criterion. Never the whole repo.
+- The worker (or the orchestrator) applies the accepted findings; the orchestrator still verifies the result against the success criterion.
+- One consultation per step by default. If a second one is needed, the orchestrator takes the step over directly and reports it.
+- A consultation never lifts a guardrail: R4–R5 stay with the orchestrator, and no secrets go into the consultation prompt.
+- Consultations do not replace the R3+ critical review in the Definition of done.
+
 ## Verification and integration (mandatory per worker)
 
 1. When each worker finishes, the orchestrator reviews the real diff against the step's success criterion (do not trust the worker's self-report).
