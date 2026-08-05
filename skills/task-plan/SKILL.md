@@ -1,11 +1,11 @@
 ---
-name: task-analysis
+name: task-plan
 description: 'Analyze a task and produce a verifiable implementation plan without writing feature code. Use when the user asks to analyze, plan, or register a task ("analyze this task", "create a plan for", "new task", "analizar tarea", "planificar", "nueva tarea"). Includes an "init" submode: when the user passes an unstructured document (README, spec, PRD, feature description) and wants it decomposed into the task registry, run the init flow in `## Init submode (project / document decomposition)` below.'
 ---
 
 # Task Analysis
 
-Analysis mode of the Tasks-Driven-Development workflow. Investigate a task and produce a plan. **Never write feature code in this mode** — the output is a plan, not an implementation. Implementation is handled by the `task-implementation` skill.
+Analysis mode of the Tasks-Driven-Development workflow. Investigate a task and produce a plan. **Never write feature code in this mode** — the output is a plan, not an implementation. Implementation is handled by the `task-impl` skill.
 
 ## Submode selection
 
@@ -119,7 +119,7 @@ Analysis is complete when:
 1. The plan exists at `.tasks/plans/plan_<task>.md`.
 2. The task header in `.tasks/tasks.md` is updated to `planned` with `R<n>` and the plan path.
 
-The `task-implementation` skill requires this handoff for any R3+ task.
+The `task-impl` skill requires this handoff for any R3+ task.
 
 ## Closing (max 2 lines)
 

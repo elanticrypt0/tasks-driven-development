@@ -14,11 +14,33 @@ Orchestrate only if ALL of these hold:
 
 Otherwise execute in series with the primary role. Orchestrating a trivial task costs more than it saves.
 
+## Isolation: one worktree per parallel worker (mandatory)
+
+Parallel workers never share a working tree — two agents writing in the same checkout overwrite each other and leave the task branch in an unreviewable state. Every parallel worker gets its own git worktree, branched off the task branch created by the implementation skill.
+
+```sh
+# from the main checkout, on task/<slug>
+git worktree add ../<repo>-<slug>-w1 -b task/<slug>/w1 task/<slug>
+git worktree add ../<repo>-<slug>-w2 -b task/<slug>/w2 task/<slug>
+```
+
+- The worker's prompt states its worktree path as the working directory and lists files relative to it. A worker never touches another worktree.
+- Backend A: if the agent tool offers worktree isolation, use it instead of the manual command. Backend B: `cd` into the worktree before `opencode run`, or pass it as the run's working directory.
+- The orchestrator stays in the main checkout and does not implement while workers are active.
+- Integration, after verifying each worker's diff against its success criterion:
+  ```sh
+  git merge --no-ff task/<slug>/w1
+  git worktree remove ../<repo>-<slug>-w1
+  ```
+- A worker branch that fails verification is not merged: fix it, redo the step, or take it over directly — and report it.
+- Leftover worktrees are a bug: `git worktree list` must show only the main checkout when the task is done.
+
 ## Subtask contract (applies to both backends)
 
 Every delegation includes, in the worker's prompt:
 
-- a precise goal and the exact files to touch (real paths);
+- the worker's worktree path and branch (see above);
+- a precise goal and the exact files to touch (real paths, relative to that worktree);
 - the minimum necessary context (do not dump the whole repo);
 - a verifiable success criterion for the step;
 - restrictions: do not delete content, do not touch files outside the list, do not introduce secrets or hardcoded values;
@@ -30,6 +52,7 @@ Every delegation includes, in the worker's prompt:
 Use when the runtime offers subagents (e.g. Task/Agent in Claude Code).
 
 - Launch independent workers in parallel with the `agent` role; search/exploration with the `fast` role.
+- Each writing worker runs in its own worktree (isolation option if the tool has one, manual `git worktree add` otherwise). Read-only workers do not need one.
 - The orchestrator does not implement while workers are active: it coordinates, verifies, and integrates.
 - Final review of the whole with the `review` role if the task is R3+.
 
@@ -113,6 +136,19 @@ The worker that writes code is **always a lesser model than the one that analyze
 - A consultation never lifts a guardrail: R4–R5 stay with the orchestrator, and no secrets go into the consultation prompt.
 - Consultations do not replace the R3+ critical review in the Definition of done.
 
+## Post-implementation audit agent
+
+Requested by the user before implementation starts (see `SKILL.md` → `## Post-implementation audit`). It runs once, over the whole task diff, on the **model the user named** — not on the default consultation model.
+
+- Backend A: launch it as a subagent with the `review` role, on the requested model, with no write tools.
+- Backend B: run it **without `--auto`** so it cannot write to disk:
+  ```sh
+  timeout 240 opencode run "AUDIT PROMPT" -m REQUESTED_MODEL
+  ```
+- Prompt contents: the task's full diff (`git diff BASE...task/SLUG`), the plan's success criteria, and the code-quality standards. Never the whole repo, never secrets.
+- Output is findings only. The orchestrator decides which to apply, applies them (or hands them to a worker), and re-runs the Definition of done.
+- If the requested model is unavailable, report it and ask the user — do not substitute a model silently and do not skip the audit on your own.
+
 ## Verification and integration (mandatory per worker)
 
 1. When each worker finishes, the orchestrator reviews the real diff against the step's success criterion (do not trust the worker's self-report).
@@ -124,5 +160,5 @@ The worker that writes code is **always a lesser model than the one that analyze
 - **FORBIDDEN: running content-deleting commands through workers** (`rm`, `DROP`, mass `DELETE`, `--force`). If a step requires one, the orchestrator runs it with user confirmation.
 - R4–R5 are never delegated: the orchestrator executes them after user confirmation.
 - Never pass secrets or credentials in worker prompts.
-- Maximum 3 workers in parallel; a file belongs to one worker at a time.
+- Maximum 3 workers in parallel; a file belongs to one worker at a time; each writing worker has its own worktree.
 - Every worker result is verified before integration (see above).

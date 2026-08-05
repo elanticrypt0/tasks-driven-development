@@ -8,14 +8,21 @@ Two agent skills that split feature work into an explicit **analyze → plan →
 
 | Skill | Mode | Output |
 |-------|------|--------|
-| [`task-analysis`](skills/task-analysis/SKILL.md) | Investigate a task, assign risk, produce a plan. Never writes feature code. | Plan in `.tasks/plans/` + task marked `planned` |
-| [`task-implementation`](skills/task-implementation/SKILL.md) | Execute a planned task (or a direct R1–R2 request) with quality and security guardrails. | Working change + task marked `review`/`done` |
+| [`task-plan`](skills/task-plan/SKILL.md) | Investigate a task, assign risk, produce a plan. Never writes feature code. | Plan in `.tasks/plans/` + task marked `planned` |
+| [`task-impl`](skills/task-impl/SKILL.md) | Execute a planned task (or a direct R1–R2 request) with quality and security guardrails. | Working change + task marked `review`/`done` |
 
 ### Handoff contract
 
 - Analysis ends when the plan exists at `.tasks/plans/plan_<task>.md` and the task header in `.tasks/tasks.md` says `planned` with a risk level.
 - Implementation **requires that handoff for any R3+ task**. Only R1–R2 requests may skip analysis.
 - On completion, implementation updates the task state and archives the plan to `.tasks/plans/archive/`.
+
+### Implementation git flow
+
+- **One branch per task** (`task/<slug>`), created before touching code; never implement on the base branch.
+- **Parallel work = one worktree per worker** (`task/<slug>/w1`, `w2`, …). The orchestrator verifies each diff before merging it into the task branch and removing the worktree.
+- **Optional audit**: before implementing, the user is asked whether an audit agent should review the produced code. Answer with the model name, or `No`; empty = No.
+- Merging into the base branch is **always manual**, and the closeout suggests a human or agent review.
 
 ## Task registry (`.tasks/`)
 
@@ -49,7 +56,7 @@ R4–R5 always require user confirmation before execution and are never delegate
 
 ## Model policy
 
-Roles are defined by capability, not brand (`primary`, `agent`, `review`, `fast`). One hard rule: **analysis and plan creation always run on the most powerful model the provider offers** — Anthropic: Fable, else Opus; OpenAI: the highest SOL variant; anything else: ask the user. Details in [`model-selection.md`](skills/task-analysis/references/model-selection.md).
+Roles are defined by capability, not brand (`primary`, `agent`, `review`, `fast`). One hard rule: **analysis and plan creation always run on the most powerful model the provider offers** — Anthropic: Fable, else Opus; OpenAI: the highest SOL variant; anything else: ask the user. Details in [`model-selection.md`](skills/task-plan/references/model-selection.md).
 
 ## Project-specific configuration
 
@@ -60,10 +67,10 @@ These skills are project-agnostic on purpose. Stack, build/test commands, and ar
 This repo is the canonical source. Symlink each skill into the directories your agents read:
 
 ```sh
-ln -s "$(pwd)/skills/task-analysis"       ~/.agents/skills/task-analysis
-ln -s "$(pwd)/skills/task-analysis"       ~/.claude/skills/task-analysis
-ln -s "$(pwd)/skills/task-implementation" ~/.agents/skills/task-implementation
-ln -s "$(pwd)/skills/task-implementation" ~/.claude/skills/task-implementation
+ln -s "$(pwd)/skills/task-plan"       ~/.agents/skills/task-plan
+ln -s "$(pwd)/skills/task-plan"       ~/.claude/skills/task-plan
+ln -s "$(pwd)/skills/task-impl" ~/.agents/skills/task-impl
+ln -s "$(pwd)/skills/task-impl" ~/.claude/skills/task-impl
 ```
 
 (Claude Code reads `~/.claude/skills`; opencode reads both. Verified 2026-07-07.)
@@ -72,10 +79,10 @@ ln -s "$(pwd)/skills/task-implementation" ~/.claude/skills/task-implementation
 
 ```
 skills/
-  task-analysis/
+  task-plan/
     SKILL.md
     references/model-selection.md
-  task-implementation/
+  task-impl/
     SKILL.md
     references/code-quality.md
     references/orchestration.md
