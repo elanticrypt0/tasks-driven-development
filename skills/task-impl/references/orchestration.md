@@ -138,15 +138,16 @@ The worker that writes code is **always a lesser model than the one that analyze
 
 ## Post-implementation audit agent
 
-Requested by the user before implementation starts (see `SKILL.md` → `## Post-implementation audit`). It runs once, over the whole task diff, on the **model the user named** — not on the default consultation model.
+Requested by the user before implementation starts (see `SKILL.md` → `## Post-implementation audit`). It runs once, over the whole task diff, on the **model the user named** — not on the default consultation model. **The procedure belongs to the `task-audit` skill**; this section only covers how to launch it from an orchestration.
 
-- Backend A: launch it as a subagent with the `review` role, on the requested model, with no write tools.
+- The audit agent runs `task-audit` with scope `diff` and the requested model.
+- Backend A: launch it as a subagent with the `review` role, on the requested model, with no write tools beyond the ones `task-audit` allows for tests.
 - Backend B: run it **without `--auto`** so it cannot write to disk:
   ```sh
   timeout 240 opencode run "AUDIT PROMPT" -m REQUESTED_MODEL
   ```
 - Prompt contents: the task's full diff (`git diff BASE...task/SLUG`), the plan's success criteria, and the code-quality standards. Never the whole repo, never secrets.
-- Output is findings only. The orchestrator decides which to apply, applies them (or hands them to a worker), and re-runs the Definition of done.
+- Output is findings only. The orchestrator decides which in-scope findings to apply, applies them (or hands them to a worker), and re-runs the Definition of done. Out-of-scope findings stay as the fix tasks `task-audit` registered.
 - If the requested model is unavailable, report it and ask the user — do not substitute a model silently and do not skip the audit on your own.
 
 ## Verification and integration (mandatory per worker)

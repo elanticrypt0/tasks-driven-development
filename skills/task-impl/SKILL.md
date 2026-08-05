@@ -79,9 +79,9 @@ Answer with the model name for the agent (e.g. `opus`, `sonnet`, `opencode-go/mi
 ```
 
 - **Empty answer, `No`, or anything not identifiable as a model → no audit.** Say which reading you applied and move on; do not re-ask.
-- A model name → after the implementation passes the Definition of done, launch an audit agent **on that exact model**. If the model is unavailable, report it and ask instead of silently substituting one.
-- The audit agent is **read-only**: it reviews the task's full diff (`git diff <base>...task/<slug>`) against the plan's success criteria and returns findings only. The implementer (or the orchestrator) applies the accepted findings, then re-runs the Definition of done.
+- A model name → after the implementation passes the Definition of done, **hand off to the `task-audit` skill** with scope `diff` (`git diff <base>...task/<slug>`) and that exact model. This skill only asks the question and consumes the result; the audit procedure itself lives in `task-audit` — do not restate or improvise it here.
 - Ask once per task. Do not re-ask per step.
+- What comes back: findings **inside this task's scope**, which the implementer (or the orchestrator) applies before re-running the Definition of done; and findings **outside it**, which `task-audit` registers as separate fix tasks. Never absorb an out-of-scope fix into the current task.
 - The audit never lifts a guardrail: R4–R5 stay with the orchestrator, no secrets go into the audit prompt, and it does not replace the R3+ critical review in the Definition of done.
 - It is distinct from a **consultation** (per-step advice during orchestration, see below): the audit covers the whole task diff and is requested by the user.
 
@@ -126,7 +126,7 @@ Before declaring the task finished:
 - Meets the plan's success criteria.
 - No secrets, dead code, or critical TODOs introduced by the change.
 - **R3+: run a critical review with the `review` role** (best reasoning model available) before declaring done — whether or not orchestration was used.
-- If the user requested an audit agent: the checks above passed first, then the audit ran on the requested model and its accepted findings were applied and re-verified.
+- If the user requested an audit agent: the checks above passed first, then `task-audit` ran on the requested model and its accepted in-scope findings were applied and re-verified.
 - All worker worktrees are merged and removed; nothing is left half-integrated.
 
 Report the real result of each verification (what ran and what it returned). If a step was skipped, say so.
