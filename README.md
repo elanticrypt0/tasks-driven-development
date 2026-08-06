@@ -24,7 +24,7 @@ The audit closes the loop: its fix tasks are already `planned`, so `task-impl` c
 ### Implementation git flow
 
 - **One branch per task** (`task/<slug>`), created before touching code; never implement on the base branch.
-- **Parallel work = one worktree per worker** (`task/<slug>/w1`, `w2`, …). The orchestrator verifies each diff before merging it into the task branch and removing the worktree.
+- **Parallel work shares that same branch**: no worktrees and no per-worker branches. Isolation is by file ownership (one file, one worker), workers only write files, and the orchestrator owns git — it verifies each scoped diff before committing it.
 - **Optional audit**: before implementing, the user is asked whether an audit agent should review the produced code. Answer with the model name, or `No`; empty = No. `task-impl` only asks — the review itself runs `task-audit` over the task diff.
 - Merging into the base branch is **always manual**, and the closeout suggests a human or agent review.
 

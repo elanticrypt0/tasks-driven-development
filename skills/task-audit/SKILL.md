@@ -142,7 +142,7 @@ Tests are the only files this skill may write, and they exist to **prove finding
 An audit may be split across read-only workers when the scope is large:
 
 - Split by **module** or by **axis** (one worker on security, one on performance), never both at once.
-- Workers are **read-only**: no writes, no worktree needed. They return candidates, not findings.
+- Workers are **read-only**: no writes, no git commands. They return candidates, not findings.
 - Maximum 3 workers in parallel.
 - **The orchestrator verifies every candidate itself** before it becomes a finding. Never promote a worker's self-reported issue straight into the report.
 - Delegation mechanics (backends, subtask contract, invocation) are in `task-impl/references/orchestration.md`.

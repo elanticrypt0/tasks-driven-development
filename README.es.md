@@ -24,7 +24,7 @@ La auditoría cierra el ciclo: sus fix tasks ya quedan `planned`, así que `task
 ### Flujo git de la implementación
 
 - **Una rama por tarea** (`task/<slug>`) creada antes de tocar código; nunca se implementa sobre la rama base.
-- **Trabajo en paralelo = un worktree por worker** (`task/<slug>/w1`, `w2`, …). El orquestador verifica cada diff y recién ahí mergea a la rama de tarea y elimina el worktree.
+- **El trabajo en paralelo comparte esa misma rama**: sin worktrees ni ramas por worker. El aislamiento es por propiedad de archivos (un archivo, un worker), los workers solo escriben archivos y el git lo maneja el orquestador: verifica cada diff acotado y recién ahí commitea.
 - **Auditoría opcional**: antes de implementar se le pregunta al usuario si quiere un agente auditor sobre el código producido. Responde con el nombre del modelo, o `No`; vacío = No. `task-impl` solo pregunta — la revisión la corre `task-audit` sobre el diff de la tarea.
 - El merge a la rama base **siempre es manual**, y al cerrar se sugiere una revisión humana o por agente.
 

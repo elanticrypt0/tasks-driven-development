@@ -30,14 +30,14 @@ Task states (in `.tasks/tasks.md`): `idea` | `planned` | `review` | `done`.
 2. **Setup before any change** — in a single message: create the task branch (see below) and ask the audit question (see `## Post-implementation audit`). Do not start implementing until both are settled.
 3. All implementation happens on the task branch, never directly on the base branch.
 4. With a task tool available: one task per step; mark `WIP` on start, `DONE` on finish.
-5. If the plan has ≥2 steps marked `parallelizable: yes` → apply orchestration (see `references/orchestration.md`); each parallel worker gets its own **git worktree** (see below). Otherwise execute directly with the primary role.
+5. If the plan has ≥2 steps marked `parallelizable: yes` → apply orchestration (see `references/orchestration.md`); every worker works on the **shared task branch** (see below). Otherwise execute directly with the primary role.
 6. Apply the code quality standards in `references/code-quality.md` to every change.
 7. Run the post-implementation audit if the user requested one, apply the accepted findings, and re-verify.
 8. On failure, report the exact error and proposed solution.
 
 ## Task branch (before implementing)
 
-Before implementing a task, create a dedicated branch for it so the work stays isolated and reversible.
+Before implementing a task, create a dedicated branch for it so the work stays isolated and reversible. It is the **single common branch** for the whole task: serial work, parallel workers, audit fixes — everything lands there.
 
 - **Name**: the simplified task name in `kebab-case`, prefixed with `task/` — e.g. task "Agregar login con Google" → `task/agregar-login-con-google`.
 - Simplify the name: lowercase, remove accents and punctuation, collapse spaces to single hyphens, drop filler words, and keep it short (roughly ≤ 6 words). If the task has an id, prefix it: `task/<id>-<slug>` (e.g. `task/T12-agregar-login`).
@@ -51,23 +51,19 @@ Before implementing a task, create a dedicated branch for it so the work stays i
 - If the working tree has uncommitted changes that do not belong to this task, say so and ask before switching branches. Never discard them.
 - Never implement directly on the base branch.
 
-## Parallel work uses worktrees
+## Parallel work on the shared task branch
 
-Parallel implementation by agents is allowed only when orchestration applies (see `references/orchestration.md`). When it does, **every parallel worker runs in its own git worktree**, never in the shared checkout — concurrent agents in one working tree corrupt each other's changes.
+Parallel implementation by agents is allowed only when orchestration applies (see `references/orchestration.md`). When it does, **all workers work on the same task branch, in the same checkout** — no worktrees, no per-worker branches, no merges. Isolation comes from disjoint file ownership, not from separate checkouts.
 
-- One worktree per worker, branched off the task branch:
+- **A file belongs to exactly one worker for the whole task.** If two steps need the same file, they are not parallelizable: run them in series.
+- Workers **write files only**. They never run git commands — no `commit`, `add`, `checkout`, `stash`, `branch`, `merge`, `pull`. Concurrent git operations collide on the index lock and are the main source of breakage.
+- The orchestrator owns git: it stays on the task branch, does not implement while workers are active, and commits after verifying each result.
+- Verification per worker is a scoped diff against the step's success criterion:
   ```sh
-  git worktree add ../<repo>-<slug>-w1 -b task/<slug>/w1 task/<slug>
+  git diff -- <worker's declared files>
   ```
-- The worker's file list (subtask contract) is expressed as paths inside its own worktree; a file still belongs to one worker at a time.
-- If the runtime creates worktrees itself for subagents (e.g. an isolation option in the agent tool), use that instead of the manual command — it is the same guarantee.
-- Integration is the orchestrator's job, in the main checkout on the task branch: merge each worker branch after verifying its diff against the step's success criterion, then clean up:
-  ```sh
-  git merge --no-ff task/<slug>/w1
-  git worktree remove ../<repo>-<slug>-w1
-  ```
-- If a worker branch fails verification, do not merge it: fix it or redo the step, and report what happened.
-- Serial execution needs no worktree — work directly on the task branch.
+- If a worker's result fails verification, revert just its files (`git checkout -- <files>`) or fix them, redo the step, and report what happened.
+- Serial execution is the same thing with one worker: work directly on the task branch.
 
 ## Post-implementation audit (ask before implementing)
 
@@ -127,7 +123,7 @@ Before declaring the task finished:
 - No secrets, dead code, or critical TODOs introduced by the change.
 - **R3+: run a critical review with the `review` role** (best reasoning model available) before declaring done — whether or not orchestration was used.
 - If the user requested an audit agent: the checks above passed first, then `task-audit` ran on the requested model and its accepted in-scope findings were applied and re-verified.
-- All worker worktrees are merged and removed; nothing is left half-integrated.
+- Every worker result was verified and committed on the task branch; nothing is left half-integrated or uncommitted.
 
 Report the real result of each verification (what ran and what it returned). If a step was skipped, say so.
 
