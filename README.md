@@ -73,6 +73,24 @@ R4–R5 always require user confirmation before execution and are never delegate
 
 Roles are defined by capability, not brand (`primary`, `agent`, `review`, `fast`). One hard rule: **analysis and plan creation always run on the most powerful model the provider offers** — Anthropic: Fable, else Opus; OpenAI: the highest SOL variant; anything else: ask the user. Auditing is analysis, so it follows the same rule — unless the user named a model for it, in which case that one is used exactly. Details in [`model-selection.md`](skills/task-plan/references/model-selection.md).
 
+## opencode agents and `/run-fase` (automation)
+
+This repo ships two opencode subagents and an orchestrator command that chain the skills into one automated flow:
+
+```
+.opencode/
+  agent/
+    coder.md      # runs task-impl  · default model: opencode-go/deepseek-v4-flash
+    auditor.md    # runs task-audit · default model: opencode-go/glm-5.3-flash
+  command/
+    run-fase.md   # /run-fase orchestrator
+```
+
+- `/run-fase T4` or `/run-fase fase-2` — resolves the task or phase from `.tasks/tasks.md`, implements each `planned` task with the **coder**, audits the diff with the **auditor**, applies in-scope findings and R1–R3 out-of-scope fix tasks, re-audits (max 2 rounds per task, then escalates), and reports a final summary table.
+- Out-of-scope **R4–R5 fixes always pause and ask** before executing. Merging stays manual.
+- The coder owns git on its `task/<slug>` branch; the auditor is strictly read-only on production code (no tests, no `audit/` branches in the automated flow — proof tests are the coder's job during fixes).
+- **Model overrides at invocation**: `/run-fase T4 audit: opus`, `/run-fase fase-2 coder: opencode-go/minimax-m3 audit: glm-5.3`. A role with a named model runs via backend B (`opencode run -m MODEL`): the coder with `--auto` (needs to write), the auditor without it (read-only — it returns the report and the orchestrator persists it). Roles without an override use the native subagents on their default models. Unavailable models are reported, never silently substituted.
+
 ## Project-specific configuration
 
 These skills are project-agnostic on purpose. Stack, build/test commands, and artifact-language conventions belong in the consuming project's docs (`docs/AGENTS.md`, `CLAUDE.md`, or equivalent), where the implementation skill reads them.
@@ -106,4 +124,12 @@ skills/
   task-audit/
     SKILL.md
     references/audit-checklist.md
+.opencode/
+  agent/
+    coder.md
+    auditor.md
+  command/
+    run-fase.md
+  commands/
+    worktrees.md
 ```
